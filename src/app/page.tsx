@@ -1,9 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Title, Text, Button, Container, SegmentedControl, Accordion } from "@mantine/core";
+import { Title, Text, Button, Container, SegmentedControl } from "@mantine/core";
 import { InputValidation } from "../components/InputValidation/InputValidation";
 import { useScrollToBottom } from "@/util/useAutoScroll";
 import LoadingGif from "@/components/LoadingGif/LoadingGif";
+import { useMediaQuery } from "@mantine/hooks";
 
 export default function Home() {
 	const [username, setUsername] = useState<string>("");
@@ -14,6 +15,8 @@ export default function Home() {
 	const [inputError, setInputError] = useState<string>("");
 
 	const scrollToBottom = useScrollToBottom();
+
+	const isMobile = useMediaQuery("(max-width: 550px)");
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
 	useEffect(() => {
@@ -114,6 +117,7 @@ export default function Home() {
 								<SegmentedControl
 									value={intensity}
 									onChange={setIntensity}
+									orientation={isMobile ? "vertical" : "horizontal"}
 									radius="xl"
 									size="md"
 									transitionDuration={200}
