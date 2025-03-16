@@ -1,103 +1,170 @@
-import Image from "next/image";
+"use client";
+import { useEffect, useState } from "react";
+import { Title, Text, Button, Container, SegmentedControl, Accordion } from "@mantine/core";
+import { InputValidation } from "../components/InputValidation/InputValidation";
+import { useScrollToBottom } from "@/util/useAutoScroll";
+import LoadingGif from "@/components/LoadingGif/LoadingGif";
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+	const [username, setUsername] = useState<string>("");
+	const [response, setResponse] = useState("");
+	const [displayedText, setDisplayedText] = useState("");
+	const [intensity, setIntensity] = useState<string>("medium");
+	const [loading, setLoading] = useState(false);
+	const [inputError, setInputError] = useState<string>("");
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
-  );
+	const scrollToBottom = useScrollToBottom();
+
+	// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
+	useEffect(() => {
+		let currentIndex = 0;
+
+		const intervalId = setInterval(() => {
+			if (loading) {
+				scrollToBottom();
+				if (currentIndex <= response.length) {
+					setDisplayedText(response.slice(0, currentIndex));
+					currentIndex++;
+				} else {
+					clearInterval(intervalId);
+					if (loading && currentIndex > 1) {
+						setLoading(false);
+					}
+				}
+			}
+		}, 15);
+
+		return () => clearInterval(intervalId);
+	}, [response, loading]);
+
+	const handleSubmit = async (e: React.FormEvent) => {
+		if (username === "") {
+			setInputError("Gotta enter a GitHub account!");
+			return;
+		}
+		e.preventDefault();
+		setResponse("");
+		setDisplayedText("");
+		try {
+			const githubResponse = await fetch(`/api/getGitHubUserActivity/?username=${username}`);
+			if (!githubResponse.ok) {
+				const errorData = await githubResponse.json();
+				if (errorData.error === "USER NOT FOUND") {
+					throw new Error("USER NOT FOUND");
+				}
+			}
+			const githubUserData = await githubResponse.text();
+			setLoading(true);
+			setInputError("");
+			const geminiResponse = await fetch("/api/queryGemini", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					intensity,
+					githubUserData,
+				}),
+			});
+			if (!geminiResponse.ok) {
+				throw new Error("GEMINI DID THIS");
+			}
+			const data = await geminiResponse.text();
+			setResponse(data);
+		} catch (error) {
+			if (error instanceof Error) {
+				if (error.message === "USER NOT FOUND") {
+					setInputError("Hmm, seems like that GitHub account doesn't exist");
+				} else if (error.message === "GEMINI DID THIS") {
+					setInputError("Somehow, Gemini failed us. Thanks google.");
+				} else {
+					setInputError(
+						"Something weird happened and I'm not sure what. Perhaps we'll never know.",
+					);
+				}
+			}
+			setLoading(false);
+		}
+	};
+
+	return (
+		<>
+			<main>
+				<div className="items-center justify-items-center min-h-screen sm:p-20 font-[family-name:var(--font-geist-sans)]">
+					<Container className="py-10 text-center">
+						<Title
+							className="text-6xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-purple-500"
+							size="h1"
+							styles={{
+								root: {
+									minHeight: "5rem",
+									maxHeight: "12rem",
+								},
+							}}
+						>
+							Roast my GitHub
+						</Title>
+						<Text className="mt-4 text-lg text-gray-300">Aren't LLMs amazing?</Text>
+						<div className="mt-10 place-items-center">
+							<InputValidation error={inputError} value={username} setValue={setUsername} />
+							<div className="mt-10">
+								<div className="flex justify-center">
+									<Text>Choose Roast level</Text>{" "}
+								</div>
+								<SegmentedControl
+									value={intensity}
+									onChange={setIntensity}
+									radius="xl"
+									size="md"
+									transitionDuration={200}
+									withItemsBorders={false}
+									className="mt-2"
+									data={[
+										{ label: "Praise me instead", value: "praise" },
+										{ label: "Roast me a bit...", value: "medium" },
+										{ label: "Roast me hard!", value: "high" },
+									]}
+									styles={{
+										root: {
+											backgroundColor: "black",
+											border: `2px solid ${intensity === "praise" ? "cyan" : intensity === "medium" ? "violet" : "var(--mantine-color-red-filled)"}`,
+										},
+										indicator: {
+											backgroundImage:
+												intensity === "praise"
+													? `linear-gradient(to right, var(--mantine-color-green-filled),var(--mantine-color-cyan-filled)
+											)`
+													: intensity === "medium"
+														? `linear-gradient(to right, var(--mantine-color-pink-filled),var(--mantine-color-violet-filled)
+											)`
+														: `linear-gradient(to right, var(--mantine-color-red-filled),var(--mantine-color-pink-filled)
+											)`,
+										},
+										label: {
+											color: "white",
+										},
+									}}
+								/>
+							</div>
+							<div className="mt-10 flex gap-4">
+								<Button loading={loading} size="lg" color="pink" onClick={handleSubmit}>
+									Roast me
+								</Button>
+							</div>
+						</div>
+						{loading && !displayedText ? (
+							<div className="mt-10 justify-items-center">
+								<LoadingGif />
+							</div>
+						) : (
+							<Text className="mt-20 text-2xl text-gray-300 whitespace-pre-line">
+								{displayedText}
+								<span className="animate-blink">|</span>
+							</Text>
+						)}
+					</Container>
+				</div>
+			</main>
+		</>
+	);
 }
