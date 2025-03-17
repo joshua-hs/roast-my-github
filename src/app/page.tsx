@@ -16,7 +16,7 @@ export default function Home() {
 	const [inputError, setInputError] = useState<string>("");
 	const [showLoadingGif, setShowLoadingGif] = useState(false);
 
-	useAutoScroll(true);
+	const { autoScrollEnabled, toggleAutoScroll } = useAutoScroll(true);
 
 	const isMobile = useMediaQuery("(max-width: 550px)");
 
@@ -43,7 +43,7 @@ export default function Home() {
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
-		if (response !== displayedText) {
+		if (loading) {
 			return;
 		}
 		if (username === "") {
@@ -51,6 +51,9 @@ export default function Home() {
 			return;
 		}
 		setLoading(true);
+		if (!autoScrollEnabled) {
+			toggleAutoScroll();
+		}
 		setResponse("");
 		setDisplayedText("");
 		try {
