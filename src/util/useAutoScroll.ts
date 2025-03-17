@@ -1,13 +1,13 @@
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 
-export function useScrollToBottom(dependencies = []) {
-	const [pageHeight, setPageHeight] = useState(0);
-	const isUserNearBottom = useRef(true);
+const useAutoScroll = (initialState = false) => {
+	const [autoScrollEnabled, setAutoScrollEnabled] = useState<boolean>(initialState);
+	const lastScrollHeight = useRef<number>(0);
 
 	const scrollToBottom = useCallback(() => {
 		if (typeof window !== "undefined") {
 			window.scrollTo({
-				top: document.body.scrollHeight,
+				top: document.documentElement.scrollHeight,
 				behavior: "smooth",
 			});
 		}
@@ -16,35 +16,75 @@ export function useScrollToBottom(dependencies = []) {
 	useEffect(() => {
 		if (typeof window === "undefined") return;
 
-		setPageHeight(document.body.scrollHeight);
-
+		let isScrolling: number;
 		const handleScroll = () => {
-			const scrollPos = window.innerHeight + window.scrollY;
-			const isNearBottom = scrollPos >= document.body.scrollHeight - 100;
-			isUserNearBottom.current = isNearBottom;
+			window.clearTimeout(isScrolling);
+
+			isScrolling = window.setTimeout(() => {
+				const { scrollTop, scrollHeight, clientHeight } = document.documentElement;
+				const isAtBottom = scrollTop + clientHeight >= scrollHeight - 30;
+
+				if (autoScrollEnabled && !isAtBottom) {
+					setAutoScrollEnabled(false);
+				}
+
+				if (isAtBottom && !autoScrollEnabled) {
+					setAutoScrollEnabled(true);
+				}
+			}, 50);
 		};
 
 		window.addEventListener("scroll", handleScroll);
-		return () => window.removeEventListener("scroll", handleScroll);
-	}, []);
+
+		return () => {
+			window.removeEventListener("scroll", handleScroll);
+		};
+	}, [autoScrollEnabled]);
 
 	useEffect(() => {
 		if (typeof window === "undefined") return;
 
-		const observer = new MutationObserver(() => {
-			const newHeight = document.body.scrollHeight;
-			if (newHeight > pageHeight) {
-				setPageHeight(newHeight);
-				if (isUserNearBottom.current) {
+		const checkPageHeight = () => {
+			const { scrollHeight } = document.documentElement;
+			console.log({ scrollHeight });
+			console.log(lastScrollHeight.current);
+			if (scrollHeight > lastScrollHeight.current) {
+				lastScrollHeight.current = scrollHeight;
+				if (autoScrollEnabled) {
 					scrollToBottom();
 				}
+			} else {
+				lastScrollHeight.current = scrollHeight;
 			}
+		};
+
+		const observer = new MutationObserver(checkPageHeight);
+		observer.observe(document.body, {
+			childList: true,
+			subtree: true,
+			characterData: true,
 		});
 
-		observer.observe(document.body, { childList: true, subtree: true });
+		lastScrollHeight.current = document.documentElement.scrollHeight;
 
-		return () => observer.disconnect();
-	}, [pageHeight, scrollToBottom, ...dependencies]);
+		return () => {
+			observer.disconnect();
+		};
+	}, [autoScrollEnabled, scrollToBottom]);
 
-	return scrollToBottom;
-}
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+
+		if (autoScrollEnabled) {
+			scrollToBottom();
+		}
+	}, [autoScrollEnabled, scrollToBottom]);
+
+	const toggleAutoScroll = () => {
+		setAutoScrollEnabled((prev) => !prev);
+	};
+
+	return { autoScrollEnabled, toggleAutoScroll };
+};
+
+export default useAutoScroll;
