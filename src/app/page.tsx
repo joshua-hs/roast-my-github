@@ -13,6 +13,7 @@ export default function Home() {
 	const [intensity, setIntensity] = useState<string>("medium");
 	const [loading, setLoading] = useState(false);
 	const [inputError, setInputError] = useState<string>("");
+	const [showLoadingGif, setShowLoadingGif] = useState(false);
 
 	const scrollToBottom = useScrollToBottom();
 
@@ -31,6 +32,7 @@ export default function Home() {
 				} else {
 					clearInterval(intervalId);
 					if (loading && currentIndex > 1) {
+						setShowLoadingGif(false);
 						setLoading(false);
 					}
 				}
@@ -46,6 +48,7 @@ export default function Home() {
 			return;
 		}
 		e.preventDefault();
+		setLoading(true);
 		setResponse("");
 		setDisplayedText("");
 		try {
@@ -57,8 +60,8 @@ export default function Home() {
 				}
 			}
 			const githubUserData = await githubResponse.text();
-			setLoading(true);
 			setInputError("");
+			setShowLoadingGif(true);
 			const geminiResponse = await fetch("/api/queryGemini", {
 				method: "POST",
 				headers: {
@@ -156,7 +159,7 @@ export default function Home() {
 								</Button>
 							</div>
 						</div>
-						{loading && !displayedText ? (
+						{showLoadingGif && !displayedText ? (
 							<div className="mt-10 justify-items-center">
 								<LoadingGif />
 							</div>
